@@ -1,24 +1,26 @@
 var canvas = document.getElementById("canvas");
 var c = canvas.getContext("2d");
 
+//set size
+canvas.width = 991;
+canvas.height = 586;
+
 var flaw = {
     match: 0,
     player1: {
         x: 0,
         y: 0,
         moves: 0,
-        color: "red"
+        color: "red",
+        sprite: "player"
     },
     player2: {
         x: 0,
         y: 0,
-        color: "blue"
+        color: "blue",
+        sprite: "ghost"
     },
     renderMap: function () {
-        //set size
-        canvas.width = 991;
-        canvas.height = 586;
-
 
         for (var i = 0; i < canvas.width; i += 15) {
             c.moveTo(i, 0);
@@ -31,9 +33,49 @@ var flaw = {
         }
         c.stroke();
     },
+    renderLight: function () {
+        for (var b = 0; b < canvas.width; b += 15) {
+            for (var a = 0; a < canvas.height; a += 15) {
+                var d = Math.floor(Math.sqrt(Math.pow(this.player1.x - b / 15, 2) + Math.pow(this.player1.y - a / 15, 2)));
+                switch (d) {
+                    case 1:
+                        c.fillStyle = "rgba(0,0,0,0.2)";
+                        c.fillRect(b, a, 15, 15);
+                        break;
+                    case 2:
+                        c.fillStyle = "rgba(0,0,0,0.4)";
+                        c.fillRect(b, a, 15, 15);
+                        break;
+                    case 3:
+                        c.fillStyle = "rgba(0,0,0,0.6)";
+                        c.fillRect(b, a, 15, 15);
+                        break;
+                    case 4:
+                        c.fillStyle = "rgba(0,0,0,0.8)";
+                        c.fillRect(b, a, 15, 15);
+                        break;
+                    default:
+                        c.fillStyle = "rgba(0,0,0,1)";
+                        c.fillRect(b, a, 15, 15);
+                }
+            }
+        }
+        c.stroke();
+    },
+//    renderFog: function () {
+//        c.fillStyle = "black";
+//        for (var b = 0; b < canvas.width; b += 15) {
+//            for (var a = 0; a < canvas.height; a += 15) {
+//                if (Math.sqrt(Math.pow(this.player1.x - b / 15, 2) + Math.pow(this.player1.y - a / 15, 2)) < 5) {
+//                    continue;
+//                }
+//                c.fillRect(b, a, 15, 15);
+//            }
+//        }
+//
+//    },
     renderPlayer: function (player) {
-        c.fillStyle = player.color;
-        c.fillRect(player.x * 15, player.y * 15, 15, 15);
+        c.drawImage(document.getElementById(player.sprite),player.x * 15,player.y * 15);
     },
     movePlayer: function (player, dx, dy) {
         if (this.player1.moves == 0) {
@@ -51,9 +93,11 @@ var flaw = {
             this.player1.x += dx;
             this.player1.y += dy;
             this.player1.moves--;
+            $("#turn").text("Your turn (" + this.player1.moves + ")");
             if (this.player1.moves == 0) {
                 $.get("pick.php", { id: this.match, pos: this.player1.x + ":" + this.player1.y });
                 flaw.ajax();
+                $("#turn").text("Waiting for your turn");
             }
             console.log(this.player1);
             this.renderGame();
@@ -65,9 +109,13 @@ var flaw = {
     },
     renderGame: function () {
         c.clearRect(0, 0, canvas.width, canvas.height);
+
         this.renderMap();
-        this.renderPlayer(this.player1);
         this.renderPlayer(this.player2);
+        //this.renderFog();
+        this.renderLight();
+        this.renderPlayer(this.player1);
+
     },
     moveHandler: function () {
         document.onkeydown = function (e) {
@@ -93,21 +141,27 @@ var flaw = {
             $.get("api.php?id=" + flaw.match, function (data) {
                 //Update pos
                 var pos1 = data.data.pos.split(":");
-                flaw.player1.x = parseInt(pos1[0]);
-                flaw.player1.y = parseInt(pos1[1]);
-
                 var pos2 = data.other.pos.split(":");
-                flaw.player2.x = parseInt(pos2[0]);
-                flaw.player2.y = parseInt(pos2[1]);
+                //Uppdatera position bara om det finns en ny uppdatering av positionen
+                if (!(flaw.player1.x == parseInt(pos1[0]) && flaw.player1.y == parseInt(pos1[1]) && flaw.player2.x == parseInt(pos2[0]) && flaw.player2.y == parseInt(pos2[1]))) {
+                    flaw.player1.x = parseInt(pos1[0]);
+                    flaw.player1.y = parseInt(pos1[1]);
 
-                flaw.renderGame();
+                    flaw.player2.x = parseInt(pos2[0]);
+                    flaw.player2.y = parseInt(pos2[1]);
+                    flaw.renderGame();
+                }
+
 
                 if (data.data.turn == 1) {
-                    flaw.player1.moves = 5;
+                    flaw.player1.moves = 10;
+                    $("#turn").text("Your turn (" + flaw.player1.moves + ")");
                     clearInterval(interval);
+                } else {
+                    $("#turn").text("Waiting for your turn");
                 }
             });
-        }, 1000);
+        }, 1500);
 
     }
 };

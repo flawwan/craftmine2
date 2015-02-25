@@ -47,7 +47,7 @@ class Api
 		$x = abs($dbPos[0] - $requestPos[0]);
 		$y = abs($dbPos[1] - $requestPos[1]);
 
-		if ($x + $y > 5){
+		if ($x + $y > 10){
 			exit(); //Cheat
 		}
 
