@@ -33,7 +33,12 @@ var flaw = {
         }
         c.stroke();
     },
+    renderApple: function (x, y) {
+        c.fillStyle = "red";
+        c.fillRect(x * 15, y * 15, 15, 15);
+    },
     renderLight: function () {
+        //this.renderApple(1,1);
         for (var b = 0; b < canvas.width; b += 15) {
             for (var a = 0; a < canvas.height; a += 15) {
                 var d = Math.floor(Math.sqrt(Math.pow(this.player1.x - b / 15, 2) + Math.pow(this.player1.y - a / 15, 2)));
@@ -75,7 +80,7 @@ var flaw = {
 //
 //    },
     renderPlayer: function (player) {
-        c.drawImage(document.getElementById(player.sprite),player.x * 15,player.y * 15);
+        c.drawImage(document.getElementById(player.sprite), player.x * 15, player.y * 15);
     },
     movePlayer: function (player, dx, dy) {
         if (this.player1.moves == 0) {
@@ -89,13 +94,12 @@ var flaw = {
                 return false;
             }
 
-
             this.player1.x += dx;
             this.player1.y += dy;
             this.player1.moves--;
             $("#turn").text("Your turn (" + this.player1.moves + ")");
             if (this.player1.moves == 0) {
-                $.get("pick.php", { id: this.match, pos: this.player1.x + ":" + this.player1.y });
+                $.get("update.php", { id: this.match, data: this.player1.x + ":" + this.player1.y });
                 flaw.ajax();
                 $("#turn").text("Waiting for your turn");
             }
@@ -140,8 +144,8 @@ var flaw = {
 
             $.get("api.php?id=" + flaw.match, function (data) {
                 //Update pos
-                var pos1 = data.data.pos.split(":");
-                var pos2 = data.other.pos.split(":");
+                var pos1 = data.you.data.split(":");
+                var pos2 = data.other.data.split(":");
                 //Uppdatera position bara om det finns en ny uppdatering av positionen
                 if (!(flaw.player1.x == parseInt(pos1[0]) && flaw.player1.y == parseInt(pos1[1]) && flaw.player2.x == parseInt(pos2[0]) && flaw.player2.y == parseInt(pos2[1]))) {
                     flaw.player1.x = parseInt(pos1[0]);
@@ -153,7 +157,7 @@ var flaw = {
                 }
 
 
-                if (data.data.turn == 1) {
+                if (data.you.turn == 1) {
                     flaw.player1.moves = 10;
                     $("#turn").text("Your turn (" + flaw.player1.moves + ")");
                     clearInterval(interval);

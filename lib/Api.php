@@ -2,19 +2,10 @@
 
 class Api
 {
-
-	private $msg = "";
-	private $status = false;
-	private $players = array();
 	private $db = null;
-	private $match;
-	private $pick;
+	private $match;//id
 	private $currentPlayer;
 
-	/**
-	 * lägger till match id:n och spelarens spelnyckel.
-	 * @param $db PDO object
-	 */
 	function __construct($db)
 	{
 		$this->db = $db;
@@ -26,50 +17,56 @@ class Api
 	}
 
 	/**
+	 * Hämta andra spelarens spelar id
+	 * @return mixed
+	 */
+	function getOtherPlayerID()
+	{
+		$sth = $this->db->prepare("SELECT `id` FROM `players` WHERE `player`!=:user AND `match_id`=:match");
+		$sth->execute(array(':user' => $this->currentPlayer, ':match' => $this->match));
+		return $sth->fetch()["id"];
+	}
+
+	/**
 	 * Denna metod kallas när spelaren har valt ett alternativ i spelet.
 	 */
-	function pick()
+	function update()
 	{
-		$this->pick = isset($_GET['pos']) ? $_GET['pos'] : null;
-		if ($this->pick == null) {
+		$dataRecieve = isset($_GET['data']) ? $_GET['data'] : null;
+		$player = $this->getCurrentPlayerData();
+		if ($dataRecieve == null || $player["turn"] == 0) {
 			exit();
 		}
 
-		$player = $this->getCurrentPlayerData();
-		if ($player["turn"] == 0) {
-			exit(); //Not your turn
-		}
+//		$oldPosition = explode(":", $player["pos"]);
+//		$newPosition = explode(":", $dataRecieve);
+//
+//		//cheat detection
+//		$x = abs($oldPosition[0] - $newPosition[0]);
+//		$y = abs($oldPosition[1] - $newPosition[1]);
+//
+//		if ($x + $y > 10) {
+//			exit(); //Cheat
+//		}
 
-		$dbPos = explode(":", $player["pos"]);
-		$requestPos = explode(":", $this->pick);
+		//Sätt din data
+		$sth = $this->db->prepare("UPDATE `players` SET `data`=:data WHERE `player`=:user AND `match_id`=:match");
+		$sth->execute(array(':data' => $dataRecieve, ':user' => $this->currentPlayer, ':match' => $this->match));
 
-		//cheat detection
-		$x = abs($dbPos[0] - $requestPos[0]);
-		$y = abs($dbPos[1] - $requestPos[1]);
-
-		if ($x + $y > 10){
-			exit(); //Cheat
-		}
-
-        //Sätt din position om det är din tur
-		$sth = $this->db->prepare("UPDATE `players` SET `pos`=:pos WHERE `player`=:user AND `match_id`=:match");
-		$sth->execute(array(':pos' => $this->pick, ':user' => $this->currentPlayer, ':match' => $this->match));
-
-		//Fetch enemy player
-		$sth = $this->db->prepare("SELECT `id` FROM `players` WHERE `player`!=:user AND `match_id`=:match");
-		$sth->execute(array(':user' => $this->currentPlayer, ':match' => $this->match));
-
-		$turn = $sth->fetch()["id"];
-		// set other turn
+		// Meddela att det är andra spelarens tur
 		$sth = $this->db->prepare("UPDATE `matches` SET `turn`=:turn WHERE `match_id`=:match_id");
-		$sth->execute(array(':turn' => $turn, ':match_id' => $this->match));
+		$sth->execute(array(':turn' => $this->getOtherPlayerID(), ':match_id' => $this->match));
 	}
 
+	/**
+	 * Hämtar information om dig
+	 * @return mixed
+	 */
 	function getCurrentPlayerData()
 	{
 		$sth = $this->db->prepare("
 		SELECT
-		`pos`,
+		`data`,
 		(`turn` = `players`.`id`) as `turn`
 		FROM `players`
 		LEFT JOIN `matches` ON `matches`.`match_id`=`players`.`match_id`
@@ -79,30 +76,30 @@ class Api
 	}
 
 	/**
-	 * Metod som kollar om det är din tur samt vilken poäng du och din motståndare har.
+	 * Hämtar information om andra spelaren
+	 * @return mixed
 	 */
-	function ajax()
+	function getOtherPlayerData()
 	{
-		//Du
-		$currentPlayerData = $this->getCurrentPlayerData();
-
-		//Annan spelare
 		$sth = $this->db->prepare("
 		SELECT
-		`pos`,
-		(`turn` = `players`.`id`) as `turn`
+		`data`
 		FROM `players`
 		LEFT JOIN `matches` ON `matches`.`match_id`=`players`.`match_id`
 		WHERE `player`!=:user AND `matches`.`match_id`=:match");
 		$sth->execute(array(':user' => $this->currentPlayer, ':match' => $this->match));
-		$otherPlayerData = $sth->fetch(PDO::FETCH_ASSOC);
+		return $sth->fetch(PDO::FETCH_ASSOC);
+	}
 
+	/**
+	 * Metod som kollar om det är din tur samt vilken poäng du och din motståndare har.
+	 */
+	function ajax()
+	{
 		header('Content-Type: application/json');
-		$returnData = json_encode(array(
-			'data' => $currentPlayerData,
-			'other' => $otherPlayerData,
+		echo json_encode(array(
+			'you' => $this->getCurrentPlayerData(),
+			'other' => $this->getOtherPlayerData(),
 		));
-
-		echo $returnData;
 	}
 }
