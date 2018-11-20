@@ -1,1 +1,1 @@
-2d canvas multiplayer game
+2d canvas multiplayer game written in PHP
